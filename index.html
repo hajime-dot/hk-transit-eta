@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="到站">
-<title>香港交通到站</title>
+<meta name="apple-mobile-web-app-title" content="有車未">
+<title>有車未</title>
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -77,7 +77,6 @@
     <div class="tabs" id="tabs"></div>
   </header>
   <div id="body" style="flex:1"></div>
-  <footer id="foot">倒數為分:秒，每秒跳動。落車時間是估計。</footer>
 </div>
 <script>
 const SCENARIOS = [
@@ -286,7 +285,6 @@ function paint() {
     }).join("");
     $("body").innerHTML = `<div class="board">${cards}</div>`;
   }
-  $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。${fetchedAt?" 資料更新 "+hk(fetchedAt,true):""}${error?" · 上次更新失敗":""}`;
 }
 async function refresh() {
   const mine = ++token, id = scenario;
@@ -321,7 +319,6 @@ function tick() {
       line.textContent = parts.join(" · ");
     }
   });
-  if (fetchedAt) $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。 資料更新 ${hk(fetchedAt, true)}${error ? " · 上次更新失敗" : ""}`;
 }
 setInterval(tick, 1000);
 setInterval(() => { if (document.visibilityState!=="hidden") refresh(); }, 15000);

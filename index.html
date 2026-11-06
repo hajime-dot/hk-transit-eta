@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="香港交通到站">
-<title>香港交通到站</title>
+<meta name="apple-mobile-web-app-title" content="有車未">
+<title>有車未</title>
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -66,7 +66,7 @@
   <header>
     <div class="top">
       <div>
-        <div class="kicker">香港交通到站</div>
+        <div class="kicker">有車未</div>
         <h1 id="title">文康弦返學</h1>
       </div>
       <div style="display:flex;align-items:center">
@@ -110,9 +110,29 @@ if (!SCENARIOS.some(s => s.id === scenario)) scenario = "school";
 let sections = null, fetchedAt = 0, error = false, pending = false, token = 0;
 const $ = id => document.getElementById(id);
 function hk(ms, secs) {
+  const date = new Date(ms);
+  const pad = n => String(n).padStart(2, "0");
+  const fallback = () => {
+    if (!Number.isFinite(date.getTime())) return secs ? "--:--:--" : "--:--";
+    const hm = pad(date.getHours()) + ":" + pad(date.getMinutes());
+    return secs ? hm + ":" + pad(date.getSeconds()) : hm;
+  };
+  if (!Number.isFinite(date.getTime())) return fallback();
   const opt = { hour:"2-digit", minute:"2-digit", hour12:false, timeZone:"Asia/Hong_Kong" };
   if (secs) opt.second = "2-digit";
-  return new Date(ms).toLocaleTimeString("zh-HK", opt);
+  try { return date.toLocaleTimeString("zh-HK", opt); }
+  catch (e) { return fallback(); }
+}
+function mtrAt(value) {
+  const m = String(value).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return NaN;
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - 8, +m[5], +(m[6] || 0));
+}
+function get(url, opt) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), 8000);
+    fetch(url, opt).then(res => { clearTimeout(timer); resolve(res); }, err => { clearTimeout(timer); reject(err); });
+  });
 }
 function colon(total) {
   total = Math.max(0, total|0);
@@ -123,12 +143,12 @@ function colon(total) {
 function left(at) { return Math.max(0, Math.round((at - Date.now())/1000)); }
 function upcoming(list) {
   const now = Date.now()-20000;
-  return list.filter(e => e.at >= now).sort((a,b)=>a.at-b.at).slice(0,4);
+  return list.filter(e => Number.isFinite(e.at) && e.at >= now).sort((a,b)=>a.at-b.at).slice(0,4);
 }
 async function kmb(routes) {
   return Promise.all(routes.map(async r => {
     try {
-      const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${r[1]}/${r[0]}/1`);
+      const res = await get(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${r[1]}/${r[0]}/1`);
       const data = await res.json();
       let dest = "";
       const etas = [];
@@ -158,13 +178,14 @@ async function buses(stops) {
   const map = {};
   await Promise.all(routes.map(async route => {
     try {
-      const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ language:"zh", routeName: route }) });
+      const res = await get("https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ language:"zh", routeName: route }) });
       map[route] = await res.json();
     } catch { map[route] = {}; }
   }));
   const now = Date.now();
   return stops.map(stop => {
-    const found = (map[stop[0]].busStop || []).find(s => s.busStopId === stop[1]);
+    const pack = map[stop[0]] || {};
+    const found = (Array.isArray(pack.busStop) ? pack.busStop : []).find(s => s.busStopId === stop[1]);
     const etas = [];
     for (const bus of (found && found.bus) || []) {
       const sec = Number(bus.arrivalTimeInSecond);
@@ -177,11 +198,11 @@ async function buses(stops) {
 async function train(sta, dest, heading, detail) {
   const row = { code:"屯馬", mode:"港鐵", heading, detail, etas:[] };
   try {
-    const res = await fetch(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TML&sta=${sta}`);
+    const res = await get(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TML&sta=${sta}`);
     const data = await res.json();
     const station = data.data && data.data["TML-"+sta];
     const list = [...((station&&station.UP)||[]), ...((station&&station.DOWN)||[])].filter(t => t.dest===dest && t.time && t.valid!=="N");
-    row.etas = upcoming(list.map(t => ({ at: new Date(t.time.replace(" ","T")+"+08:00").getTime(), platform: t.plat })));
+    row.etas = upcoming(list.map(t => ({ at: mtrAt(t.time), platform: t.plat })));
   } catch {}
   return row;
 }
@@ -193,7 +214,7 @@ function lrtSeconds(train) {
 }
 async function lightRail(stationId, platformId, dests, heading, via) {
   try {
-    const res = await fetch(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);
+    const res = await get(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);
     const data = await res.json();
     const platforms = (data.platform_list||[]).filter(p => platformId == null || p.platform_id === platformId);
     const groups = new Map(), now = Date.now();

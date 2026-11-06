@@ -43,7 +43,7 @@
   <div id="panel-2" class="panel"><div id="content2" class="grid"><div class="loading">載入中...</div></div></div>
   <div id="panel-3" class="panel"><div id="content3" class="grid"><div class="loading">載入中...</div></div></div>
 </div>
-<footer>數據來源：data.gov.hk 公開 API + 邨巴時間表。實時倒數至秒。API 每15秒更新。</footer>
+<footer>數據來源：data.gov.hk 公開 API + 邨巴時間表。實時倒數至秒跳動。API 每15秒更新。</footer>
 <script>
 const clockEl=document.getElementById('clock');
 function updateClock(){clockEl.textContent=new Date().toLocaleTimeString('zh-HK',{hour12:false});}
@@ -52,11 +52,12 @@ const select=document.getElementById('scenarioSelect');
 select.addEventListener('change',()=>{
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+select.value).classList.add('active');
+  renderActive();
 });
 const SCENARIO1_ROUTES=[{route:'53',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'63X',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'68A',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'258P',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'261',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'53',stop:'459BE083B86A8337',service:'1',note:'置樂→藍地',alightMin:8}];
 const MTR_BUS_ROUTES=['K52','K53','K51'];
 const SCENARIO3_ROUTES=['K51','K52','K53'];
-let liveData={scenario1:[]};
+let liveData={scenario1:[], mtrbusHtml:'', lightrailHtml:'', scenario3Html:''};
 async function fetchKMBETA(stopId,route,serviceType='1'){try{const res=await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/${serviceType}`);if(!res.ok)throw new Error();const data=await res.json();return data.data||[];}catch(e){return[];}}
 async function fetchLightRail(stationId=350){try{const res=await fetch(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);if(!res.ok)throw new Error();return await res.json();}catch(e){return null;}}
 async function fetchMTRBus(routeName){try{const res=await fetch('https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:'zh',routeName})});if(!res.ok)throw new Error();return await res.json();}catch(e){return null;}}
@@ -64,30 +65,21 @@ function formatRemain(etaIso){if(!etaIso)return{text:'--',seconds:Infinity,soon:
 function formatSeconds(sec){sec=Math.max(0,parseInt(sec)||0);if(sec>36000)return{text:'未有資料',seconds:Infinity,soon:false};const mins=Math.floor(sec/60);const secs=sec%60;const text=mins>0?`${mins}分${secs.toString().padStart(2,'0')}秒`:`${secs}秒`;return{text,seconds:sec,soon:sec<90};}
 function getVillageBusNext(){const now=new Date();const candidates=[];for(let h=now.getHours();h<=now.getHours()+2;h++){for(const m of [10,40]){const t=new Date(now);t.setHours(h,m,0,0);if(t>now)candidates.push(t);}}candidates.sort((a,b)=>a-b);return candidates.slice(0,3);}
 function renderVillageBus(){const nexts=getVillageBusNext();const etaHtml=nexts.map(t=>{const rem=formatRemain(t.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${t.toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'})}</div><div class="remain">${rem.text}</div></div>`;}).join('');return `<div class="route-card village-bus"><div class="route-header"><span class="route-no">邨巴</span><span class="dest">每小時 :10 / :40 出發</span></div><div class="etas">${etaHtml}</div></div>`;}
-async function loadScenario1(){const results=[];for(const r of SCENARIO1_ROUTES){const etas=await fetchKMBETA(r.stop,r.route,r.service);if(etas.length){results.push({route:r.route,dest:etas[0].dest_tc,etas,note:r.note,alightMin:r.alightMin});}}liveData.scenario1=results;renderScenario1();}
-function renderScenario1(){const container=document.getElementById('content1');if(!liveData.scenario1.length){container.innerHTML='<div class="error">暫時無法取得數據</div>';return;}let html=liveData.scenario1.map(r=>{const etaHtml=r.etas.slice(0,3).map(e=>{const rem=formatRemain(e.eta);const alightTime=new Date(new Date(e.eta).getTime()+(r.alightMin||10)*60*1000);const alight=formatRemain(alightTime.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">到站 ${rem.text}</div><div class="remain">落車 ${alight.text}</div></div>`;}).join('');return `<div class="route-card"><div class="route-header"><span class="route-no">${r.route}</span><span class="dest">${r.note}<br>${r.dest}</span></div><div class="etas">${etaHtml}</div></div>`;}).join('');html+=renderVillageBus();container.innerHTML=html;}
-async function loadMTRBus(){let html='';for(const route of MTR_BUS_ROUTES){const data=await fetchMTRBus(route);if(!data||!data.busStop)continue;const chiLok=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D180')||s.busStopId.includes('nU100')||s.busStopId.includes('D160')));if(chiLok&&chiLok.bus&&chiLok.bus.length){const etaHtml=chiLok.bus.slice(0,3).map(b=>{const rem=formatSeconds(b.arrivalTimeInSecond);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">置樂→屯門站</span></div><div class="etas">${etaHtml}</div></div>`;}}document.getElementById('content1').insertAdjacentHTML('beforeend',html);}
-async function loadScenario2(){const data=await fetchLightRail(350);if(!data||!data.platform_list){document.getElementById('content2').innerHTML='<div class="error">無法取得輕鐵數據</div>';return;}const plat=data.platform_list.find(p=>p.platform_id===2)||data.platform_list[1];if(!plat)return;const routes={};plat.route_list.forEach(tr=>{if(!routes[tr.route_no])routes[tr.route_no]=[];routes[tr.route_no].push(tr);});let html='';for(const [route,trains] of Object.entries(routes)){const dest=trains[0].dest_ch;const etaHtml=trains.slice(0,3).map(tr=>{let secs=Infinity;if(tr.time_en&&tr.time_en!=='-'){const m=tr.time_en.match(/(\d+)/);if(m)secs=parseInt(m[1])*60;}const f=formatSeconds(secs);return `<div class="eta ${f.soon?'soon':''}"><div class="time">${tr.time_ch||tr.time_en||'即將'}</div><div class="remain">${f.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">往 ${dest}</span></div><div class="etas">${etaHtml}</div></div>`;}document.getElementById('content2').innerHTML=html||'<div>暫無班次</div>';}
-async function loadScenario3(){
-  const container=document.getElementById('content3');
-  container.innerHTML='<div class="loading">載入港鐵K巴士中...</div>';
-  let html='';
-  for(const route of SCENARIO3_ROUTES){
-    const data=await fetchMTRBus(route);
-    if(!data||!data.busStop) continue;
-    const tmStop=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D100')||s.busStopId.includes('D110')||s.busStopId.includes('D120')||s.busStopId.includes('nD100')||s.busStopId.includes('nD110'))) || data.busStop[5] || data.busStop[0];
-    if(tmStop&&tmStop.bus&&tmStop.bus.length){
-      const etaHtml=tmStop.bus.slice(0,3).map(b=>{
-        const rem=formatSeconds(b.arrivalTimeInSecond);
-        return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;
-      }).join('');
-      html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">屯門站附近 → 恆順園</span></div><div class="etas">${etaHtml}</div></div>`;
-    }
-  }
-  container.innerHTML=html||'<div class="error">暫時無相關K巴士數據</div>';
+async function loadScenario1(){const results=[];for(const r of SCENARIO1_ROUTES){const etas=await fetchKMBETA(r.stop,r.route,r.service);if(etas.length){results.push({route:r.route,dest:etas[0].dest_tc,etas,note:r.note,alightMin:r.alightMin});}}liveData.scenario1=results;}
+function renderScenario1(){const container=document.getElementById('content1');if(!liveData.scenario1.length){container.innerHTML='<div class="error">暫時無法取得數據</div>';return;}let html=liveData.scenario1.map(r=>{const etaHtml=r.etas.slice(0,3).map(e=>{const rem=formatRemain(e.eta);const alightTime=new Date(new Date(e.eta).getTime()+(r.alightMin||10)*60*1000);const alight=formatRemain(alightTime.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">到站 ${rem.text}</div><div class="remain">落車 ${alight.text}</div></div>`;}).join('');return `<div class="route-card"><div class="route-header"><span class="route-no">${r.route}</span><span class="dest">${r.note}<br>${r.dest}</span></div><div class="etas">${etaHtml}</div></div>`;}).join('');html+=renderVillageBus();html+=liveData.mtrbusHtml;container.innerHTML=html;}
+async function loadMTRBus(){let html='';for(const route of MTR_BUS_ROUTES){const data=await fetchMTRBus(route);if(!data||!data.busStop)continue;const chiLok=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D180')||s.busStopId.includes('nU100')||s.busStopId.includes('D160')));if(chiLok&&chiLok.bus&&chiLok.bus.length){const etaHtml=chiLok.bus.slice(0,3).map(b=>{const rem=formatSeconds(b.arrivalTimeInSecond);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">置樂→屯門站</span></div><div class="etas">${etaHtml}</div></div>`;}}liveData.mtrbusHtml=html;}
+async function loadScenario2(){const data=await fetchLightRail(350);if(!data||!data.platform_list){liveData.lightrailHtml='<div class="error">無法取得輕鐵數據</div>';return;}const plat=data.platform_list.find(p=>p.platform_id===2)||data.platform_list[1];if(!plat)return;const routes={};plat.route_list.forEach(tr=>{if(!routes[tr.route_no])routes[tr.route_no]=[];routes[tr.route_no].push(tr);});let html='';for(const [route,trains] of Object.entries(routes)){const dest=trains[0].dest_ch;const etaHtml=trains.slice(0,3).map(tr=>{let secs=Infinity;if(tr.time_en&&tr.time_en!=='-'){const m=tr.time_en.match(/(\d+)/);if(m)secs=parseInt(m[1])*60;}const f=formatSeconds(secs);return `<div class="eta ${f.soon?'soon':''}"><div class="time">${tr.time_ch||tr.time_en||'即將'}</div><div class="remain">${f.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">往 ${dest}</span></div><div class="etas">${etaHtml}</div></div>`;}liveData.lightrailHtml=html||'<div>暫無班次</div>';}
+function renderScenario2(){document.getElementById('content2').innerHTML=liveData.lightrailHtml;}
+async function loadScenario3(){let html='';for(const route of SCENARIO3_ROUTES){const data=await fetchMTRBus(route);if(!data||!data.busStop) continue;const tmStop=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D100')||s.busStopId.includes('D110')||s.busStopId.includes('D120')||s.busStopId.includes('nD100')||s.busStopId.includes('nD110'))) || data.busStop[5] || data.busStop[0];if(tmStop&&tmStop.bus&&tmStop.bus.length){const etaHtml=tmStop.bus.slice(0,3).map(b=>{const rem=formatSeconds(b.arrivalTimeInSecond);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">屯門站附近 → 恆順園</span></div><div class="etas">${etaHtml}</div></div>`;}}liveData.scenario3Html=html||'<div class="error">暫時無相關K巴士數據</div>';}
+function renderScenario3(){document.getElementById('content3').innerHTML=liveData.scenario3Html;}
+function renderActive(){
+  const v=select.value;
+  if(v==='1') renderScenario1();
+  else if(v==='2') renderScenario2();
+  else if(v==='3') renderScenario3();
 }
-setInterval(()=>{if(document.getElementById('panel-1').classList.contains('active')){renderScenario1();}},1000);
-async function refreshAll(){await loadScenario1();await loadMTRBus();await loadScenario2();await loadScenario3();}refreshAll();setInterval(refreshAll,15000);
+setInterval(renderActive,1000);
+async function refreshAll(){await loadScenario1();await loadMTRBus();await loadScenario2();await loadScenario3();renderActive();}refreshAll();setInterval(refreshAll,15000);
 </script>
 </body>
 </html>

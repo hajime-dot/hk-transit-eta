@@ -2,96 +2,297 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>香港交通到站時間 - 情景模式</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<title>香港交通到站</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f0f2f5; --card:#fff; --text:#1a1a1a; --primary:#0066cc; --secondary:#555; --success:#008000; --soon:#d4edda; --border:#ddd; }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
-  header{padding:6px 10px;background:#fff;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:10px;}
-  h1{font-size:1.1rem;color:var(--primary);white-space:nowrap;}
-  .clock{font-size:1rem;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
-  select#scenarioSelect{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;background:#fff;flex:1;max-width:240px;}
-  .content{flex:1;overflow:auto;padding:6px;}
-  .panel{display:none;height:100%;}
-  .panel.active{display:block;}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;height:100%;align-content:start;}
-  .route-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.08);}
-  .route-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
-  .route-no{font-size:1.1rem;font-weight:700;color:var(--primary);}
-  .dest{font-size:0.7rem;color:var(--secondary);text-align:right;max-width:50%;line-height:1.2;}
-  .etas{display:flex;flex-direction:column;gap:3px;flex:1;}
-  .eta{background:#f8f9fa;border-radius:5px;padding:4px;text-align:center;font-variant-numeric:tabular-nums;}
-  .eta.soon{background:var(--soon);border:1px solid var(--success);}
-  .eta .time{font-size:0.9rem;font-weight:600;}
-  .eta .remain{font-size:0.7rem;color:var(--success);margin-top:1px;}
-  .village-bus .eta{background:#fff3cd;}
-  .loading,.error{grid-column:1/-1;text-align:center;padding:40px;color:var(--secondary);}
-  footer{font-size:0.65rem;color:var(--secondary);text-align:center;padding:3px;background:#fff;border-top:1px solid var(--border);flex-shrink:0;}
+  :root { --bg:#101418; --surface:#171e24; --surface-2:#212a32; --line:#2d3942; --fg:#f3f6f4; --muted:#9aa7b0; --faint:#738088; --accent:#e4a23a; --ink:#1c1408; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: "Noto Sans TC", "Barlow", sans-serif; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .app { max-width: 48rem; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 12px 8px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+  .kicker, .path, .hint, .mode, .sub, footer { color: var(--muted); }
+  .kicker, .hint, .mode, footer { font-size: 0.75rem; }
+  .clock { font-family: Barlow, sans-serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; }
+  .tabs button { min-height: 44px; flex: 0 0 auto; border-radius: 999px; padding: 0 12px; background: var(--surface-2); font-size: 0.875rem; }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--ink); font-weight: 600; }
+  .path { margin: 8px 0 0; font-size: 0.875rem; }
+  .path span { color: var(--faint); }
+  .hero, .cell, .sk { background: var(--surface); border-radius: 16px; }
+  .hero { margin: 12px 12px 0; padding: 12px; }
+  .hero.soon { background: var(--accent); color: var(--ink); }
+  .hero .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .hero strong { font-size: 1.125rem; }
+  .big { font-family: Barlow, sans-serif; font-size: 2.25rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+  h2 { display: flex; align-items: center; gap: 8px; margin: 14px 12px 0; font-size: 0.75rem; font-weight: 500; color: var(--muted); }
+  h2 i { width: 2px; height: 12px; background: var(--accent); display: block; }
+  .hint { margin: 4px 12px 0; }
+  .board { margin-top: 4px; }
+  @media (min-width: 768px) { .board { display: grid; grid-template-columns: 1fr 1fr; } }
+  article { border-bottom: 1px solid var(--line); padding: 10px 12px; }
+  .id { display: flex; gap: 8px; }
+  .code { width: 3.5rem; flex: 0 0 auto; font-family: Barlow, sans-serif; font-size: 1.25rem; font-weight: 600; line-height: 1; }
+  .etas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
+  .etas.four { grid-template-columns: repeat(4, 1fr); }
+  .cell { border-radius: 8px; padding: 6px; }
+  .cell.soon .count { color: var(--accent); }
+  .count { font-family: Barlow, sans-serif; font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+  .meta { margin-top: 4px; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .alight, .empty { font-size: 0.75rem; color: var(--faint); }
+  .sk { height: 96px; margin: 8px 12px; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+  footer { border-top: 1px solid var(--line); text-align: center; padding: 8px 12px 12px; }
+  .spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<header>
-  <h1>香港交通到站</h1>
-  <select id="scenarioSelect">
-    <option value="1">情景一：文康弦返學</option>
-    <option value="2">情景二：置樂去何文田</option>
-    <option value="3">情景三：置樂返藍地</option>
-    <option value="4">情景四：返工去何文田</option>
-    <option value="5">情景五：放工返置樂</option>
-  </select>
-  <div class="clock" id="clock">--:--:--</div>
-</header>
-<div class="content">
-  <div id="panel-1" class="panel active"><div id="content1" class="grid"><div class="loading">載入中...</div></div></div>
-  <div id="panel-2" class="panel"><div id="content2" class="grid"><div class="loading">載入中...</div></div></div>
-  <div id="panel-3" class="panel"><div id="content3" class="grid"><div class="loading">載入中...</div></div></div>
-  <div id="panel-4" class="panel"><div id="content4" class="grid"><div class="loading">載入中...</div></div></div>
-  <div id="panel-5" class="panel"><div id="content5" class="grid"><div class="loading">載入中...</div></div></div>
+<div class="app">
+  <header>
+    <div class="top">
+      <div>
+        <div class="kicker">香港交通到站</div>
+        <h1 id="title">文康弦返學</h1>
+      </div>
+      <div style="display:flex;align-items:center">
+        <div class="clock" id="clock">--:--:--</div>
+        <button id="reload" aria-label="立即更新" style="width:44px;height:44px">↻</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <p class="path" id="path"></p>
+  </header>
+  <div id="body" style="flex:1"></div>
+  <footer id="foot">倒數為分:秒，每秒跳動。落車時間是估計。</footer>
 </div>
-<footer>數據來源：data.gov.hk 公開 API + 邨巴時間表。實時倒數至秒跳動。API 每15秒更新。</footer>
 <script>
-const clockEl=document.getElementById('clock');
-function updateClock(){clockEl.textContent=new Date().toLocaleTimeString('zh-HK',{hour12:false});}
-setInterval(updateClock,1000);updateClock();
-const select=document.getElementById('scenarioSelect');
-select.addEventListener('change',()=>{
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+select.value).classList.add('active');
-  renderActive();
-});
-const SCENARIO1_ROUTES=[{route:'53',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'63X',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'68A',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'258P',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'261',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11}];
-const SCENARIO3_ROUTES=[{route:'53',stop:'459BE083B86A8337',service:'1',note:'置樂→藍地',alightMin:8}];
-const MTR_BUS_ROUTES=['K51','K52','K53'];
-let liveData={s1:[], s2:'', s3:'', s4:'', s5:''};
-async function fetchKMBETA(stopId,route,serviceType='1'){try{const res=await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/${serviceType}`);if(!res.ok)throw new Error();const data=await res.json();return data.data||[];}catch(e){return[];}}
-async function fetchLightRail(stationId=350){try{const res=await fetch(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);if(!res.ok)throw new Error();return await res.json();}catch(e){return null;}}
-async function fetchMTRBus(routeName){try{const res=await fetch('https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:'zh',routeName})});if(!res.ok)throw new Error();return await res.json();}catch(e){return null;}}
-async function fetchMTRTrain(line,sta){try{const res=await fetch(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}`);if(!res.ok)throw new Error();return await res.json();}catch(e){return null;}}
-function formatRemain(etaIso){if(!etaIso)return{text:'--',seconds:Infinity,soon:false};const eta=new Date(etaIso);const now=new Date();const seconds=Math.max(0,Math.floor((eta-now)/1000));const mins=Math.floor(seconds/60);const secs=seconds%60;const text=mins>0?`${mins}分${secs.toString().padStart(2,'0')}秒`:`${secs}秒`;return{text,seconds,soon:seconds<90};}
-function formatSeconds(sec){sec=Math.max(0,parseInt(sec)||0);if(sec>36000)return{text:'未有資料',seconds:Infinity,soon:false};const mins=Math.floor(sec/60);const secs=sec%60;const text=mins>0?`${mins}分${secs.toString().padStart(2,'0')}秒`:`${secs}秒`;return{text,seconds:sec,soon:sec<90};}
-function getVillageBusNext(){const now=new Date();const candidates=[];for(let h=now.getHours();h<=now.getHours()+2;h++){for(const m of [10,40]){const t=new Date(now);t.setHours(h,m,0,0);if(t>now)candidates.push(t);}}candidates.sort((a,b)=>a-b);return candidates.slice(0,3);}
-function renderVillageBus(){const nexts=getVillageBusNext();const etaHtml=nexts.map(t=>{const rem=formatRemain(t.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${t.toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'})}</div><div class="remain">${rem.text}</div></div>`;}).join('');return `<div class="route-card village-bus"><div class="route-header"><span class="route-no">邨巴</span><span class="dest">每小時 :10 / :40 出發</span></div><div class="etas">${etaHtml}</div></div>`;}
-async function loadS1(){const results=[];for(const r of SCENARIO1_ROUTES){const etas=await fetchKMBETA(r.stop,r.route,r.service);if(etas.length){results.push({route:r.route,dest:etas[0].dest_tc,etas,note:r.note,alightMin:r.alightMin});}}liveData.s1=results;}
-function renderS1(){const container=document.getElementById('content1');if(!liveData.s1.length){container.innerHTML='<div class="error">暫時無法取得數據</div>';return;}let html=liveData.s1.map(r=>{const etaHtml=r.etas.slice(0,3).map(e=>{const rem=formatRemain(e.eta);const alightTime=new Date(new Date(e.eta).getTime()+(r.alightMin||10)*60*1000);const alight=formatRemain(alightTime.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">到站 ${rem.text}</div><div class="remain">落車 ${alight.text}</div></div>`;}).join('');return `<div class="route-card"><div class="route-header"><span class="route-no">${r.route}</span><span class="dest">${r.note}<br>${r.dest}</span></div><div class="etas">${etaHtml}</div></div>`;}).join('');container.innerHTML=html;}
-async function loadS2(){let html='';for(const route of MTR_BUS_ROUTES){const data=await fetchMTRBus(route);if(!data||!data.busStop)continue;const chiLok=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D180')||s.busStopId.includes('nU100')||s.busStopId.includes('D160')));if(chiLok&&chiLok.bus&&chiLok.bus.length){const etaHtml=chiLok.bus.slice(0,3).map(b=>{const rem=formatSeconds(b.arrivalTimeInSecond);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">置樂→屯門站</span></div><div class="etas">${etaHtml}</div></div>`;}}const mtr=await fetchMTRTrain('WRL','TUM');if(mtr&&mtr.data&&mtr.data['WRL-TUM']){const trains=mtr.data['WRL-TUM'].DOWN||mtr.data['WRL-TUM'].UP||[];const etaHtml=trains.slice(0,3).map(t=>{const rem=formatRemain(t.time);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${t.time.slice(11,16)}</div><div class="remain">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">西鐵</span><span class="dest">屯門站開車</span></div><div class="etas">${etaHtml}</div></div>`;}liveData.s2=html||'<div class="error">暫時無數據</div>';}
-function renderS2(){document.getElementById('content2').innerHTML=liveData.s2;}
-async function loadS3(){const results=[];for(const r of SCENARIO3_ROUTES){const etas=await fetchKMBETA(r.stop,r.route,r.service);if(etas.length){results.push({route:r.route,dest:etas[0].dest_tc,etas,note:r.note,alightMin:r.alightMin});}}let html=results.map(r=>{const etaHtml=r.etas.slice(0,3).map(e=>{const rem=formatRemain(e.eta);const alightTime=new Date(new Date(e.eta).getTime()+(r.alightMin||8)*60*1000);const alight=formatRemain(alightTime.toISOString());return `<div class="eta ${rem.soon?'soon':''}"><div class="time">到站 ${rem.text}</div><div class="remain">落車 ${alight.text}</div></div>`;}).join('');return `<div class="route-card"><div class="route-header"><span class="route-no">${r.route}</span><span class="dest">${r.note}<br>${r.dest}</span></div><div class="etas">${etaHtml}</div></div>`;}).join('');html+=renderVillageBus();liveData.s3=html||'<div class="error">暫時無數據</div>';}
-function renderS3(){document.getElementById('content3').innerHTML=liveData.s3;}
-async function loadS4(){const data=await fetchLightRail(350);let html='';if(data&&data.platform_list){const plat=data.platform_list.find(p=>p.platform_id===2)||data.platform_list[1];if(plat){const routes={};plat.route_list.forEach(tr=>{if(!routes[tr.route_no])routes[tr.route_no]=[];routes[tr.route_no].push(tr);});for(const [route,trains] of Object.entries(routes)){const dest=trains[0].dest_ch;const etaHtml=trains.slice(0,3).map(tr=>{let secs=Infinity;if(tr.time_en&&tr.time_en!=='-'){const m=tr.time_en.match(/(\d+)/);if(m)secs=parseInt(m[1])*60;}const f=formatSeconds(secs);return `<div class="eta ${f.soon?'soon':''}"><div class="time">${tr.time_ch||tr.time_en||'即將'}</div><div class="remain">${f.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">往 ${dest}</span></div><div class="etas">${etaHtml}</div></div>`;}}}const mtr=await fetchMTRTrain('WRL','SIH');if(mtr&&mtr.data&&mtr.data['WRL-SIH']){const trains=mtr.data['WRL-SIH'].DOWN||mtr.data['WRL-SIH'].UP||[];const etaHtml=trains.slice(0,3).map(t=>{const rem=formatRemain(t.time);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${t.time.slice(11,16)}</div><div class="remain">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">西鐵</span><span class="dest">兆康站開車</span></div><div class="etas">${etaHtml}</div></div>`;}liveData.s4=html||'<div class="error">暫時無數據</div>';}
-function renderS4(){document.getElementById('content4').innerHTML=liveData.s4;}
-async function loadS5(){let html='';const mtr=await fetchMTRTrain('KTL','HOM');if(mtr&&mtr.data&&mtr.data['KTL-HOM']){const trains=mtr.data['KTL-HOM'].UP||mtr.data['KTL-HOM'].DOWN||[];const etaHtml=trains.slice(0,3).map(t=>{const rem=formatRemain(t.time);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${t.time.slice(11,16)}</div><div class="remain">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">觀塘</span><span class="dest">何文田 → 屯門方向</span></div><div class="etas">${etaHtml}</div></div>`;}for(const route of MTR_BUS_ROUTES){const data=await fetchMTRBus(route);if(!data||!data.busStop)continue;const tmStop=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D100')||s.busStopId.includes('D110')||s.busStopId.includes('nD100'))) || data.busStop[5] || data.busStop[0];if(tmStop&&tmStop.bus&&tmStop.bus.length){const etaHtml=tmStop.bus.slice(0,3).map(b=>{const rem=formatSeconds(b.arrivalTimeInSecond);return `<div class="eta ${rem.soon?'soon':''}"><div class="time">${rem.text}</div></div>`;}).join('');html+=`<div class="route-card"><div class="route-header"><span class="route-no">${route}</span><span class="dest">屯門站 → 恆順園</span></div><div class="etas">${etaHtml}</div></div>`;}}liveData.s5=html||'<div class="error">暫時無數據</div>';}
-function renderS5(){document.getElementById('content5').innerHTML=liveData.s5;}
-function renderActive(){
-  const v=select.value;
-  if(v==='1') renderS1();
-  else if(v==='2') renderS2();
-  else if(v==='3') renderS3();
-  else if(v==='4') renderS4();
-  else if(v==='5') renderS5();
+const SCENARIOS = [
+  { id:"school", short:"返學", title:"文康弦返學", path:"藍地 → 華都", detail:"九巴 53、63X、68A、258P、261" },
+  { id:"to-hom", short:"去何文田", title:"置樂去何文田", path:"置樂 → 屯門站 → 何文田", detail:"港鐵巴士 K51 / K52 / K53，再轉屯馬線" },
+  { id:"to-lamtei", short:"返藍地", title:"置樂返藍地", path:"置樂 → 藍地", detail:"九巴 53，或邨巴 :10 / :40" },
+  { id:"to-work", short:"返工", title:"返工去何文田", path:"藍地 → 兆康 → 何文田", detail:"輕鐵往兆康，再轉屯馬線" },
+  { id:"from-work", short:"放工", title:"放工返置樂", path:"何文田 → 屯門站 → 恆順園", detail:"屯馬線往屯門，再轉港鐵巴士" }
+];
+const SCHOOL = [
+  ["53","46D1A9FD1F84CA5C","藍地站上車","往荃灣如心 · 約 11 分鐘到華都",11],
+  ["63X","46D1A9FD1F84CA5C","藍地站上車","往西九龍 · 約 8 分鐘到華都",8],
+  ["68A","46D1A9FD1F84CA5C","藍地站上車","往青衣站 · 約 8 分鐘到華都",8],
+  ["258P","46D1A9FD1F84CA5C","藍地站上車","往藍田 · 約 12 分鐘到華都",12],
+  ["261","50DC968C90CE7CF4","兆康站（南）上車","不停藍地 · 往三聖 · 約 8 分鐘到華都",8]
+];
+const BACK = [["53","459BE083B86A8337","置樂花園上車","往元朗形點 · 約 8 分鐘到藍地",8]];
+const TO_STATION = [
+  ["K51","K51-D180","置樂花園","往富泰 · 經屯門站"],
+  ["K52","K52-nU100","置樂花園","往龍鼓灘 · 經屯門站"],
+  ["K53","K53-D140","置樂花園","循環線回屯門站"]
+];
+const TO_HANDSOME = [
+  ["K51","K51-U080","港鐵屯門站","往大欖 · 下一帶恆順園"],
+  ["K52","K52-nD190","屯門站","往悅湖山莊 · 下一帶恆順園"],
+  ["K53","K53-U010","屯門站","循環線 · 開出後經恆順園"]
+];
+let scenario = localStorage.getItem("hk-eta-scenario") || "school";
+if (!SCENARIOS.some(s => s.id === scenario)) scenario = "school";
+let sections = null, fetchedAt = 0, error = false, pending = false, token = 0;
+const $ = id => document.getElementById(id);
+function hk(ms, secs) {
+  return new Date(ms).toLocaleTimeString("zh-HK", { hour:"2-digit", minute:"2-digit", second: secs ? "2-digit" : undefined, hour12:false, timeZone:"Asia/Hong_Kong" });
 }
-setInterval(renderActive,1000);
-async function refreshAll(){await loadS1();await loadS2();await loadS3();await loadS4();await loadS5();renderActive();}refreshAll();setInterval(refreshAll,15000);
+function colon(total) {
+  total = Math.max(0, total|0);
+  const h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+  if (h) return h+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  return m+":"+String(s).padStart(2,"0");
+}
+function left(at) { return Math.max(0, Math.round((at - Date.now())/1000)); }
+function upcoming(list) {
+  const now = Date.now()-20000;
+  return list.filter(e => e.at >= now).sort((a,b)=>a.at-b.at).slice(0,4);
+}
+async function kmb(routes) {
+  return Promise.all(routes.map(async r => {
+    try {
+      const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${r[1]}/${r[0]}/1`);
+      const data = await res.json();
+      let dest = "";
+      const etas = [];
+      for (const item of data.data || []) {
+        if (!dest && item.dest_tc) dest = item.dest_tc;
+        if (!item.eta) continue;
+        etas.push({ at: new Date(item.eta).getTime(), scheduled: !!item.rmk_tc });
+      }
+      return { code:r[0], mode:"九巴", heading: dest ? r[2]+" · 往"+dest : r[2], detail:r[3], alight:r[4], etas: upcoming(etas) };
+    } catch { return { code:r[0], mode:"九巴", heading:r[2], detail:r[3], alight:r[4], etas:[] }; }
+  }));
+}
+function village() {
+  const start = new Date(); start.setMinutes(0,0,0);
+  const base = start.getTime(), etas = [];
+  for (let step=0; step<36 && etas.length<3; step++) {
+    for (const minute of [10,40]) {
+      const at = base + step*3600000 + minute*60000;
+      if (at > Date.now()) etas.push({ at });
+      if (etas.length>=3) break;
+    }
+  }
+  return [{ code:"邨巴", mode:"屋邨", heading:"固定班次", detail:"每小時 :10 及 :40 開出", etas }];
+}
+async function buses(stops) {
+  const routes = [...new Set(stops.map(s => s[0]))];
+  const map = {};
+  await Promise.all(routes.map(async route => {
+    try {
+      const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ language:"zh", routeName: route }) });
+      map[route] = await res.json();
+    } catch { map[route] = {}; }
+  }));
+  const now = Date.now();
+  return stops.map(stop => {
+    const found = (map[stop[0]].busStop || []).find(s => s.busStopId === stop[1]);
+    const etas = [];
+    for (const bus of (found && found.bus) || []) {
+      const sec = Number(bus.arrivalTimeInSecond);
+      if (!Number.isFinite(sec) || sec >= 10000) continue;
+      etas.push({ at: now + sec*1000, scheduled: bus.isScheduled === "1" });
+    }
+    return { code: stop[0], mode:"港鐵巴士", heading: stop[2], detail: stop[3], etas: upcoming(etas) };
+  });
+}
+async function train(sta, dest, heading, detail) {
+  const row = { code:"屯馬", mode:"港鐵", heading, detail, etas:[] };
+  try {
+    const res = await fetch(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TML&sta=${sta}`);
+    const data = await res.json();
+    const station = data.data && data.data["TML-"+sta];
+    const list = [...((station&&station.UP)||[]), ...((station&&station.DOWN)||[])].filter(t => t.dest===dest && t.time && t.valid!=="N");
+    row.etas = upcoming(list.map(t => ({ at: new Date(t.time.replace(" ","T")+"+08:00").getTime(), platform: t.plat })));
+  } catch {}
+  return row;
+}
+function lrtSeconds(train) {
+  const en = (train.time_en||"").toLowerCase(), ch = train.time_ch||"";
+  if (en.includes("arriv") || en.includes("depart") || ch.includes("即將")) return 15;
+  const m = en.match(/(\d+)/);
+  return m ? Number(m[1])*60 : null;
+}
+async function lightRail() {
+  try {
+    const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=350&with_special=1");
+    const data = await res.json();
+    const platform = (data.platform_list||[]).find(p => p.platform_id===2) || (data.platform_list||[])[1];
+    const groups = new Map(), now = Date.now();
+    for (const train of (platform&&platform.route_list)||[]) {
+      const sec = lrtSeconds(train); if (sec==null || !train.route_no) continue;
+      const key = train.route_no+"-"+(train.dest_ch||"");
+      if (!groups.has(key)) groups.set(key, { code: train.route_no, dest: train.dest_ch||"", etas:[] });
+      groups.get(key).etas.push({ at: now+sec*1000 });
+    }
+    const order = ["610","614","615","751","505","507"];
+    return [...groups.values()].sort((a,b)=>(order.indexOf(a.code)<0?50:order.indexOf(a.code))-(order.indexOf(b.code)<0?50:order.indexOf(b.code))).map(g => ({
+      code:g.code, mode:"輕鐵", heading:"藍地站 2 號月台", detail:"往"+g.dest+" · 經兆康", etas: upcoming(g.etas)
+    }));
+  } catch { return []; }
+}
+async function load(id) {
+  if (id==="school") return [{ label:"九巴 · 藍地 → 華都", hint:"261 不停藍地站，改於兆康站（南）上車", rows: await kmb(SCHOOL) }];
+  if (id==="to-hom") {
+    const [bus, rail] = await Promise.all([buses(TO_STATION), train("TUM","WKS","屯門站開車","往烏溪沙 · 經何文田")]);
+    return [{ label:"港鐵巴士 · 置樂 → 屯門站", rows: bus }, { label:"屯馬線 · 屯門站開車", rows:[rail] }];
+  }
+  if (id==="to-lamtei") return [{ label:"置樂 → 藍地", rows:[...(await kmb(BACK)), ...village()] }];
+  if (id==="to-work") {
+    const [rail, trainRow] = await Promise.all([lightRail(), train("SIH","WKS","兆康站開車","往烏溪沙 · 經何文田")]);
+    return [{ label:"輕鐵 · 藍地 → 兆康方向", hint:"只顯示往屯門碼頭／友愛，即途經兆康", rows: rail }, { label:"屯馬線 · 兆康站開車", rows:[trainRow] }];
+  }
+  const [rail, bus] = await Promise.all([train("HOM","TUM","何文田站","往屯門 · 唔好搭往烏溪沙"), buses(TO_HANDSOME)]);
+  return [{ label:"屯馬線 · 何文田 → 屯門", rows:[rail] }, { label:"港鐵巴士 · 屯門站 → 恆順園", rows: bus }];
+}
+function firstEta() {
+  const rows = (sections && sections[0] && sections[0].rows) || [];
+  let best = null;
+  for (const row of rows) {
+    const eta = row.etas.find(e => e.at >= Date.now()-5000);
+    if (eta && (!best || eta.at < best.at)) best = { row, at: eta.at };
+  }
+  return best;
+}
+function cell(eta, alight) {
+  const sec = left(eta.at), soon = sec < 90;
+  const alightAttr = alight == null ? "" : ` data-alight="${alight}"`;
+  return `<div class="cell${soon?" soon":""}" data-at="${eta.at}"${alightAttr}><div class="count">${sec===0?"現在":colon(sec)}</div><div class="meta">${hk(eta.at,false)}${eta.scheduled?" 預":""}</div>${alight!=null?`<div class="alight alight-line">落 ${colon(sec+alight*60)}</div>`:""}${eta.platform?`<div class="alight">${eta.platform} 號月台</div>`:""}</div>`;
+}
+function paint() {
+  const spec = SCENARIOS.find(s => s.id===scenario);
+  $("title").textContent = spec.title;
+  $("clock").textContent = hk(Date.now(), true);
+  $("path").innerHTML = `${spec.path} <span>· ${spec.detail}</span>`;
+  $("tabs").innerHTML = SCENARIOS.map(s => `<button type="button" data-id="${s.id}" aria-pressed="${s.id===scenario}">${s.short}</button>`).join("");
+  $("reload").className = pending ? "spin" : "";
+  if (!sections) {
+    $("body").innerHTML = `<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>`;
+  } else {
+    const next = firstEta();
+    let hero;
+    if (!next) hero = `<div class="hero"><div class="kicker">最快一班</div><div>暫時未有班次</div></div>`;
+    else {
+      const sec = left(next.at), soon = sec<90;
+      hero = `<div class="hero${soon?" soon":""}" id="hero"><div class="${soon?"":"kicker"}">${soon?"就到，可以出發":"最快一班"}</div><div class="row"><div><strong>${next.row.code} · ${next.row.heading}</strong><div class="${soon?"":"sub"}" style="font-size:.75rem">${next.row.detail}</div></div><div class="big" data-hero="${next.at}">${sec===0?"現在":colon(sec)}</div></div></div>`;
+    }
+    const blocks = sections.map(section => `<h2><i></i>${section.label}</h2>${section.hint?`<div class="hint">${section.hint}</div>`:""}<div class="board">${section.rows.map(row => {
+      const visible = row.etas.filter(e => e.at >= Date.now()-15000).slice(0,4);
+      const etas = visible.length ? `<div class="etas${visible.length>3?" four":""}">${visible.map(e => cell(e, row.alight)).join("")}</div>` : `<div class="empty">暫無班次</div>`;
+      return `<article><div class="id"><div><div class="code">${row.code}</div><div class="mode">${row.mode}</div></div><div><div>${row.heading}</div><div class="sub" style="font-size:.75rem">${row.detail}</div></div></div>${etas}</article>`;
+    }).join("")}</div>`).join("");
+    $("body").innerHTML = hero + blocks;
+  }
+  $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。${fetchedAt?" 資料更新 "+hk(fetchedAt,true):""}${error?" · 上次更新失敗":""}`;
+}
+async function refresh() {
+  const mine = ++token, id = scenario;
+  pending = true; paint();
+  try {
+    const next = await load(id);
+    if (mine !== token) return;
+    sections = next; fetchedAt = Date.now(); error = false;
+  } catch { if (mine===token) error = true; }
+  finally { if (mine===token) { pending = false; paint(); } }
+}
+$("tabs").addEventListener("click", ev => {
+  const id = ev.target && ev.target.dataset && ev.target.dataset.id;
+  if (!id || id===scenario) return;
+  scenario = id; localStorage.setItem("hk-eta-scenario", id); sections = null; refresh();
+});
+$("reload").addEventListener("click", () => refresh());
+function tick() {
+  $("clock").textContent = hk(Date.now(), true);
+  document.querySelectorAll("[data-at]").forEach(el => {
+    const sec = left(Number(el.dataset.at));
+    const count = el.querySelector(".count");
+    if (count) count.textContent = sec === 0 ? "現在" : colon(sec);
+    el.classList.toggle("soon", sec < 90);
+    const line = el.querySelector(".alight-line");
+    if (line && el.dataset.alight != null) line.textContent = "落 " + colon(sec + Number(el.dataset.alight) * 60);
+  });
+  const hero = document.querySelector("[data-hero]");
+  if (hero) {
+    const sec = left(Number(hero.dataset.hero));
+    hero.textContent = sec === 0 ? "現在" : colon(sec);
+    const box = $("hero");
+    if (box) box.classList.toggle("soon", sec < 90);
+  }
+  if (fetchedAt) $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。 資料更新 ${hk(fetchedAt, true)}${error ? " · 上次更新失敗" : ""}`;
+}
+setInterval(tick, 1000);
+setInterval(() => { if (document.visibilityState!=="hidden") refresh(); }, 15000);
+refresh();
 </script>
 </body>
 </html>

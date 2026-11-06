@@ -1,2 +1,3 @@
 # hk-transit-eta
-Hong Kong Transit ETA scenarios for bus, Light Rail and MTR Bus - 文康弦返學 / 返工去何文田
+香港交通到站時間。五個情景：文康弦返學、置樂去何文田、置樂返藍地、返工去何文田、放工返置樂。
+倒數每秒更新。資料來自 data.gov.hk。

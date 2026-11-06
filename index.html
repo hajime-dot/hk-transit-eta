@@ -20,7 +20,7 @@
   .kicker, .path, .hint, .mode, .sub, footer { color: var(--muted); }
   .kicker, .hint, .mode, footer { font-size: 0.75rem; }
   .clock { font-family: Barlow, sans-serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); }
-  .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
   .tabs button { min-height: 44px; border-radius: 999px; padding: 0 2px; background: var(--surface-2); font-size: 0.75rem; line-height: 1.2; }
   .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--ink); font-weight: 600; }
   .path { margin: 8px 0 0; font-size: 0.875rem; }
@@ -74,10 +74,11 @@
 <script>
 const SCENARIOS = [
   { id:"school", short:"返學", title:"文康弦返學", path:"藍地 → 華都", detail:"九巴 53、63X、68A、258P、261" },
-  { id:"to-hom", short:"去何文田", title:"置樂去何文田", path:"置樂 → 屯門站 → 何文田", detail:"港鐵巴士 K51 / K52 / K53，再轉屯馬線" },
+  { id:"to-hom", short:"置樂去何文田", title:"置樂去何文田", path:"置樂 → 屯門站 → 何文田", detail:"港鐵巴士 K51 / K52 / K53，再轉屯馬線" },
   { id:"to-lamtei", short:"返藍地", title:"置樂返藍地", path:"置樂 → 藍地", detail:"九巴 53，或邨巴 :10 / :40" },
   { id:"to-work", short:"返工", title:"返工去何文田", path:"藍地 → 兆康 → 何文田", detail:"輕鐵往兆康，再轉屯馬線" },
-  { id:"from-work", short:"放工", title:"放工返置樂", path:"何文田 → 屯門站 → 恆順園", detail:"屯馬線往屯門，再轉港鐵巴士" }
+  { id:"from-work", short:"返工返置樂", title:"返工返置樂", path:"何文田 → 屯門站 → 恆順園", detail:"屯馬線往屯門，再轉港鐵巴士" },
+  { id:"from-lamtei", short:"放工返藍地", title:"放工返藍地", path:"何文田 → 兆康 → 藍地", detail:"屯馬線往兆康，再轉輕鐵" }
 ];
 const SCHOOL = [
   ["53","46D1A9FD1F84CA5C","藍地站上車","往荃灣如心 · 約 11 分鐘到華都",11],
@@ -181,21 +182,25 @@ function lrtSeconds(train) {
   const m = en.match(/(\d+)/);
   return m ? Number(m[1])*60 : null;
 }
-async function lightRail() {
+async function lightRail(stationId, platformId, dests, heading, via) {
   try {
-    const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=350&with_special=1");
+    const res = await fetch(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);
     const data = await res.json();
-    const platform = (data.platform_list||[]).find(p => p.platform_id===2) || (data.platform_list||[])[1];
+    const platforms = (data.platform_list||[]).filter(p => platformId == null || p.platform_id === platformId);
     const groups = new Map(), now = Date.now();
-    for (const train of (platform&&platform.route_list)||[]) {
-      const sec = lrtSeconds(train); if (sec==null || !train.route_no) continue;
-      const key = train.route_no+"-"+(train.dest_ch||"");
-      if (!groups.has(key)) groups.set(key, { code: train.route_no, dest: train.dest_ch||"", etas:[] });
-      groups.get(key).etas.push({ at: now+sec*1000 });
+    for (const platform of platforms) {
+      for (const train of platform.route_list||[]) {
+        const sec = lrtSeconds(train);
+        if (sec==null || !train.route_no) continue;
+        if (dests && dests.indexOf(train.dest_ch) < 0) continue;
+        const key = train.route_no+"-"+(train.dest_ch||"");
+        if (!groups.has(key)) groups.set(key, { code: train.route_no, dest: train.dest_ch||"", etas:[] });
+        groups.get(key).etas.push({ at: now+sec*1000 });
+      }
     }
     const order = ["610","614","615","751","505","507"];
     return [...groups.values()].sort((a,b)=>(order.indexOf(a.code)<0?50:order.indexOf(a.code))-(order.indexOf(b.code)<0?50:order.indexOf(b.code))).map(g => ({
-      code:g.code, mode:"輕鐵", heading:"藍地站 2 號月台", detail:"往"+g.dest+" · 經兆康", etas: upcoming(g.etas)
+      code:g.code, mode:"輕鐵", heading, detail:"往"+g.dest+" · "+via, etas: upcoming(g.etas)
     }));
   } catch { return []; }
 }
@@ -207,8 +212,15 @@ async function load(id) {
   }
   if (id==="to-lamtei") return [{ label:"置樂 → 藍地", rows:[...(await kmb(BACK)), ...village()] }];
   if (id==="to-work") {
-    const [rail, trainRow] = await Promise.all([lightRail(), train("SIH","WKS","兆康站開車","往烏溪沙 · 經何文田")]);
+    const [rail, trainRow] = await Promise.all([lightRail(350, 2, null, "藍地站 2 號月台", "經兆康"), train("SIH","WKS","兆康站開車","往烏溪沙 · 經何文田")]);
     return [{ label:"輕鐵 · 藍地 → 兆康方向", hint:"只顯示往屯門碼頭／友愛，即途經兆康", rows: rail }, { label:"屯馬線 · 兆康站開車", rows:[trainRow] }];
+  }
+  if (id==="from-lamtei") {
+    const [rail, lrt] = await Promise.all([
+      train("HOM","TUM","何文田站","往屯門方向 · 兆康落車"),
+      lightRail(100, 1, ["元朗","天逸"], "兆康站 1 號月台", "經藍地")
+    ]);
+    return [{ label:"屯馬線 · 何文田 → 兆康", rows:[rail] }, { label:"輕鐵 · 兆康 → 藍地", rows: lrt }];
   }
   const [rail, bus] = await Promise.all([train("HOM","TUM","何文田站","往屯門 · 唔好搭往烏溪沙"), buses(TO_HANDSOME)]);
   return [{ label:"屯馬線 · 何文田 → 屯門", rows:[rail] }, { label:"港鐵巴士 · 屯門站 → 恆順園", rows: bus }];

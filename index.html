@@ -248,23 +248,31 @@ function paint() {
   if (!sections) {
     $("body").innerHTML = `<div class="board"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>`;
   } else {
-    const rows = sections.flatMap(section => section.rows).sort((a, b) => {
-      const at = row => (row.etas.find(e => e.at >= Date.now()-15000) || {}).at ?? Infinity;
-      return at(a) - at(b);
-    });
-    const cards = rows.map((row, index) => {
+    const atOf = row => (row.etas.find(e => e.at >= Date.now()-15000) || {}).at ?? Infinity;
+    const rows = sections.flatMap(section => section.rows.slice().sort((a, b) => atOf(a) - atOf(b)));
+    let soonest = null, soonestAt = Infinity;
+    rows.forEach(row => { const at = atOf(row); if (at < soonestAt) { soonestAt = at; soonest = row; } });
+    const cards = rows.map(row => {
       const visible = row.etas.filter(e => e.at >= Date.now()-15000).slice(0, 3);
-      const first = index === 0 && visible.length;
-      const times = visible.length ? `<ul style="margin:6px 0 0;padding:0;list-style:none">${visible.map(eta => {
-        const sec = left(eta.at);
-        const soon = sec < 90;
-        const extra = [
-          row.alight != null ? "落 " + colon(sec + row.alight * 60) : "",
-          eta.platform ? eta.platform + "號月台" : ""
-        ].filter(Boolean).join(" · ");
-        return `<li data-at="${eta.at}"${row.alight != null ? ` data-alight="${row.alight}"` : ""}${eta.platform ? ` data-platform="${eta.platform}"` : ""}><div style="display:flex;justify-content:space-between;gap:4px"><span class="count" style="color:${soon ? "var(--accent)" : "inherit"}">${sec===0?"現在":colon(sec)}</span><span class="meta">${hk(eta.at,false)}${eta.scheduled?" 預":""}</span></div>${extra ? `<div class="alight alight-line">${extra}</div>` : ""}</li>`;
-      }).join("")}</ul>` : `<div class="empty">暫無班次</div>`;
-      return `<article style="${first ? "background:var(--surface)" : ""}"><div class="id" style="justify-content:space-between"><div class="code" style="${first ? "color:var(--accent)" : ""}">${row.code}</div><div class="mode">${row.mode}</div></div><div class="sub" style="font-size:.75rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${row.heading}</div>${times}</article>`;
+      const first = soonest && row === soonest && visible.length;
+      const wide = row.mode === "港鐵";
+      const times = !visible.length ? `<div class="empty">暫無班次</div>` : wide
+        ? `<div class="etas">${visible.map(eta => {
+            const sec = left(eta.at);
+            const soon = sec < 90;
+            const extra = [row.alight != null ? "落 " + colon(sec + row.alight * 60) : "", eta.platform ? eta.platform + "號月台" : ""].filter(Boolean).join(" · ");
+            return `<div data-at="${eta.at}"${row.alight != null ? ` data-alight="${row.alight}"` : ""}${eta.platform ? ` data-platform="${eta.platform}"` : ""}><div class="count" style="color:${soon ? "var(--accent)" : "inherit"}">${sec===0?"現在":colon(sec)}</div><div class="meta">${hk(eta.at,false)}${eta.scheduled?" 預":""}</div>${extra ? `<div class="alight alight-line">${extra}</div>` : ""}</div>`;
+          }).join("")}</div>`
+        : `<ul style="margin:6px 0 0;padding:0;list-style:none">${visible.map(eta => {
+            const sec = left(eta.at);
+            const soon = sec < 90;
+            const extra = [row.alight != null ? "落 " + colon(sec + row.alight * 60) : "", eta.platform ? eta.platform + "號月台" : ""].filter(Boolean).join(" · ");
+            return `<li data-at="${eta.at}"${row.alight != null ? ` data-alight="${row.alight}"` : ""}${eta.platform ? ` data-platform="${eta.platform}"` : ""}><div style="display:flex;justify-content:space-between;gap:4px"><span class="count" style="color:${soon ? "var(--accent)" : "inherit"}">${sec===0?"現在":colon(sec)}</span><span class="meta">${hk(eta.at,false)}${eta.scheduled?" 預":""}</span></div>${extra ? `<div class="alight alight-line">${extra}</div>` : ""}</li>`;
+          }).join("")}</ul>`;
+      const head = wide
+        ? `<div class="id" style="justify-content:space-between"><div class="code" style="${first ? "color:var(--accent)" : ""}">${row.code}</div><div class="sub" style="flex:1;margin:0 8px;font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${row.heading}</div><div class="mode">${row.mode}</div></div>`
+        : `<div class="id" style="justify-content:space-between"><div class="code" style="${first ? "color:var(--accent)" : ""}">${row.code}</div><div class="mode">${row.mode}</div></div><div class="sub" style="font-size:.75rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${row.heading}</div>`;
+      return `<article style="${wide ? "grid-column:1 / -1;" : ""}${first ? "background:var(--surface)" : ""}">${head}${times}</article>`;
     }).join("");
     $("body").innerHTML = `<div class="board">${cards}</div>`;
   }

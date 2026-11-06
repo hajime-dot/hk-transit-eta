@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>香港交通到站時間 - 情景模式</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #212529;
+    --primary: #0d6efd;
+    --secondary: #6c757d;
+    --success: #198754;
+    --warning: #ffc107;
+    --border: #dee2e6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 16px;
+    line-height: 1.5;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0 0 8px; font-size: 1.6rem; color: var(--primary); }
+  .clock { font-size: 1.1rem; color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .scenarios {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  button.scenario {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+  }
+  button.scenario.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  button.scenario:hover { background: #e9ecef; }
+  button.scenario.active:hover { background: #0b5ed7; }
+  .panel {
+    display: none;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .panel.active { display: block; }
+  h2 { margin-top: 0; font-size: 1.25rem; color: #0a58ca; }
+  h3 { font-size: 1.05rem; margin: 16px 0 8px; }
+  .route-list { display: flex; flex-direction: column; gap: 10px; }
+  .route-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+  }
+  .route-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .route-no { font-size: 1.1rem; color: var(--primary); }
+  .dest { font-size: 0.9rem; color: var(--secondary); }
+  .etas { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .eta {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-variant-numeric: tabular-nums;
+    min-width: 90px;
+    text-align: center;
+  }
+  .eta .time { font-weight: 600; font-size: 1rem; }
+  .eta .remain { font-size: 0.85rem; color: var(--success); }
+  .eta.soon { border-color: var(--success); background: #d1e7dd; }
+  .eta.scheduled { opacity: 0.7; }
+  .loading { text-align: center; color: var(--secondary); padding: 20px; }
+  .error { color: #dc3545; }
+  footer { text-align: center; font-size: 0.8rem; color: var(--secondary); margin-top: 20px; }
+  .refresh-info { font-size: 0.8rem; color: var(--secondary); text-align: right; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>香港交通到站時間</h1>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<div class="scenarios">
+  <button class="scenario active" data-scenario="1">情景一：文康弦返學</button>
+  <button class="scenario" data-scenario="2">情景二：返工去何文田</button>
+  <button class="scenario" data-scenario="3">情景三（待更新）</button>
+</div>
+
+<!-- Scenario 1 -->
+<div id="panel-1" class="panel active">
+  <h2>情景一：文康弦返學</h2>
+  
+  <h3>組別一：藍地站巴士站 → 華都花園巴士站</h3>
+  <p>顯示所有會經華都花園的巴士到站時間，以及預計落車時間（約10-12分鐘車程）。</p>
+  <div class="refresh-info" id="refresh1">最後更新：--</div>
+  <div id="content1" class="route-list"><div class="loading">載入中...</div></div>
+
+  <h3>組別二：置樂花園站 → 屯門西鐵站（港鐵巴士）</h3>
+  <p>港鐵巴士到站時間。</p>
+  <div class="refresh-info" id="refresh1b">最後更新：--</div>
+  <div id="content1b" class="route-list"><div class="loading">載入中...</div></div>
+</div>
+
+<!-- Scenario 2 -->
+<div id="panel-2" class="panel">
+  <h2>情景二：返工去何文田</h2>
+  <h3>藍地輕鐵站 → 兆康輕鐵站</h3>
+  <p>輕鐵到站時間（往兆康方向）。</p>
+  <div class="refresh-info" id="refresh2">最後更新：--</div>
+  <div id="content2" class="route-list"><div class="loading">載入中...</div></div>
+</div>
+
+<!-- Scenario 3 -->
+<div id="panel-3" class="panel">
+  <h2>情景三</h2>
+  <p>待你提供詳情後更新。</p>
+</div>
+
+<footer>
+  數據來源：data.gov.hk 公開 API（九巴/龍運、輕鐵、港鐵巴士）。準確至秒。自動每30秒更新。
+</footer>
+
+<script>
+const clockEl = document.getElementById('clock');
+function updateClock() {
+  const now = new Date();
+  clockEl.textContent = now.toLocaleTimeString('zh-HK', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Scenario switch
+document.querySelectorAll('.scenario').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scenario').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.scenario).classList.add('active');
+  });
+});
+
+// Hardcoded relevant data for scenarios
+const SCENARIO1_ROUTES = [
+  { route: '53', stop: '46D1A9FD1F84CA5C', service: '1', note: '經華都' },
+  { route: '63X', stop: '46D1A9FD1F84CA5C', service: '1', note: '經華都' },
+  { route: '68A', stop: '46D1A9FD1F84CA5C', service: '1', note: '經華都' },
+  { route: '258P', stop: '46D1A9FD1F84CA5C', service: '1', note: '經華都' },
+  { route: '261', stop: '46D1A9FD1F84CA5C', service: '1', note: '經華都' },
+  // Add more as needed; user can update
+];
+
+const MTR_BUS_ROUTES = ['K52', 'K53', 'K51']; // routes that pass 置樂 to Tuen Mun Station
+
+async function fetchKMBETA(stopId, route, serviceType = '1') {
+  try {
+    const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/${serviceType}`);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    return data.data || [];
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+async function fetchLightRail(stationId = 350) {
+  try {
+    const res = await fetch(`https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${stationId}&with_special=1`);
+    if (!res.ok) throw new Error(res.status);
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function fetchMTRBus(routeName) {
+  try {
+    const res = await fetch('https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'zh', routeName })
+    });
+    if (!res.ok) throw new Error(res.status);
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+function formatRemain(etaIso) {
+  if (!etaIso) return { text: '--', seconds: Infinity, soon: false };
+  const eta = new Date(etaIso);
+  const now = new Date();
+  const diffMs = eta - now;
+  const seconds = Math.max(0, Math.floor(diffMs / 1000));
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const text = mins > 0 ? `${mins}分${secs.toString().padStart(2,'0')}秒` : `${secs}秒`;
+  return { text, seconds, soon: seconds < 60, scheduled: false };
+}
+
+function formatSeconds(sec) {
+  sec = parseInt(sec) || 0;
+  if (sec > 10000) return { text: '未有資料', seconds: Infinity, soon: false };
+  const mins = Math.floor(sec / 60);
+  const secs = sec % 60;
+  const text = mins > 0 ? `${mins}分${secs.toString().padStart(2,'0')}秒` : `${secs}秒`;
+  return { text, seconds: sec, soon: sec < 60 };
+}
+
+async function loadScenario1() {
+  const container = document.getElementById('content1');
+  container.innerHTML = '<div class="loading">載入巴士數據中...</div>';
+  const results = [];
+  for (const r of SCENARIO1_ROUTES) {
+    const etas = await fetchKMBETA(r.stop, r.route, r.service);
+    if (etas.length) {
+      results.push({ route: r.route, dest: etas[0].dest_tc, etas, note: r.note });
+    }
+  }
+  if (!results.length) {
+    container.innerHTML = '<div class="error">暫時無法取得數據，或此方向暫無班次。</div>';
+  } else {
+    container.innerHTML = results.map(r => {
+      const etaHtml = r.etas.slice(0, 3).map(e => {
+        const rem = formatRemain(e.eta);
+        const alight = rem.seconds !== Infinity ? formatRemain(new Date(new Date(e.eta).getTime() + 11*60*1000).toISOString()) : rem;
+        return `<div class="eta ${rem.soon ? 'soon' : ''}">
+          <div class="time">到站 ${rem.text}</div>
+          <div class="remain">預計落車 ${alight.text}</div>
+          ${e.rmk_tc ? `<div style="font-size:0.75rem">${e.rmk_tc}</div>` : ''}
+        </div>`;
+      }).join('');
+      return `<div class="route-card">
+        <div class="route-header">
+          <span class="route-no">${r.route}</span>
+          <span class="dest">${r.dest} ${r.note}</span>
+        </div>
+        <div class="etas">${etaHtml}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('refresh1').textContent = '最後更新：' + new Date().toLocaleTimeString('zh-HK');
+}
+
+async function loadMTRBus() {
+  const container = document.getElementById('content1b');
+  container.innerHTML = '<div class="loading">載入港鐵巴士中...</div>';
+  let html = '';
+  for (const route of MTR_BUS_ROUTES) {
+    const data = await fetchMTRBus(route);
+    if (!data || !data.busStop) continue;
+    // Find 置樂花園 stop - approximate by known ID pattern or name if available
+    const chiLok = data.busStop.find(s => s.busStopId && (s.busStopId.includes('置樂') || s.busStopId.includes('D180') || s.busStopId.includes('nU100') || s.busStopId.includes('D160')));
+    if (chiLok && chiLok.bus && chiLok.bus.length) {
+      const etaHtml = chiLok.bus.slice(0, 3).map(b => {
+        const rem = formatSeconds(b.arrivalTimeInSecond);
+        return `<div class="eta ${rem.soon ? 'soon' : ''}">
+          <div class="time">${rem.text}</div>
+          <div class="remain">${b.arrivalTimeText || ''}</div>
+        </div>`;
+      }).join('');
+      html += `<div class="route-card">
+        <div class="route-header">
+          <span class="route-no">${route}</span>
+          <span class="dest">置樂花園 → 屯門站</span>
+        </div>
+        <div class="etas">${etaHtml}</div>
+      </div>`;
+    }
+  }
+  container.innerHTML = html || '<div class="error">暫時無相關港鐵巴士數據。</div>';
+  document.getElementById('refresh1b').textContent = '最後更新：' + new Date().toLocaleTimeString('zh-HK');
+}
+
+async function loadScenario2() {
+  const container = document.getElementById('content2');
+  container.innerHTML = '<div class="loading">載入輕鐵數據中...</div>';
+  const data = await fetchLightRail(350);
+  if (!data || !data.platform_list) {
+    container.innerHTML = '<div class="error">無法取得輕鐵數據。</div>';
+    return;
+  }
+  // Platform 2 typically towards Siu Hong / Tuen Mun
+  const plat = data.platform_list.find(p => p.platform_id === 2) || data.platform_list[1];
+  if (!plat) {
+    container.innerHTML = '<div class="error">無月台數據。</div>';
+    return;
+  }
+  const routes = {};
+  plat.route_list.forEach(tr => {
+    if (!routes[tr.route_no]) routes[tr.route_no] = [];
+    routes[tr.route_no].push(tr);
+  });
+  let html = '';
+  for (const [route, trains] of Object.entries(routes)) {
+    const dest = trains[0].dest_ch;
+    const etaHtml = trains.slice(0, 3).map(tr => {
+      const rem = formatSeconds(tr.time_en === '-' ? 0 : parseInt(tr.time_en) * 60 || 0);
+      // Better parse if minutes
+      let secs = Infinity;
+      if (tr.time_en && tr.time_en !== '-') {
+        const m = tr.time_en.match(/(\d+)/);
+        if (m) secs = parseInt(m[1]) * 60;
+      }
+      const f = formatSeconds(secs);
+      return `<div class="eta ${f.soon ? 'soon' : ''}">
+        <div class="time">${tr.time_ch || tr.time_en || '即將'}</div>
+        <div class="remain">${f.text !== '未有資料' ? f.text : ''}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="route-card">
+      <div class="route-header">
+        <span class="route-no">${route}</span>
+        <span class="dest">往 ${dest}</span>
+      </div>
+      <div class="etas">${etaHtml}</div>
+    </div>`;
+  }
+  container.innerHTML = html || '<div>暫無班次。</div>';
+  document.getElementById('refresh2').textContent = '最後更新：' + new Date().toLocaleTimeString('zh-HK');
+}
+
+// Initial load and auto refresh
+async function refreshAll() {
+  await loadScenario1();
+  await loadMTRBus();
+  await loadScenario2();
+}
+refreshAll();
+setInterval(refreshAll, 30000);
+
+// Live update remaining times every second for displayed etas (optional enhancement)
+</script>
+</body>
+</html>

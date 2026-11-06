@@ -73,7 +73,7 @@
 </div>
 <script>
 const SCENARIOS = [
-  { id:"school", short:"返學", title:"文康弦返學", path:"藍地 → 華都", detail:"九巴 53、63X、68A、258P、261" },
+  { id:"school", short:"返學", title:"文康弦返學", path:"藍地 → 華都", detail:"九巴 53、63X、68A、258P、960P" },
   { id:"to-hom", short:"置樂去何文田", title:"置樂去何文田", path:"置樂 → 屯門站 → 何文田", detail:"港鐵巴士 K51 / K52 / K53，再轉屯馬線" },
   { id:"to-lamtei", short:"置樂返藍地", title:"置樂返藍地", path:"置樂 → 藍地", detail:"九巴 53，或邨巴 :10 / :40" },
   { id:"to-work", short:"返工", title:"返工去何文田", path:"藍地 → 兆康 → 何文田", detail:"輕鐵往兆康，再轉屯馬線" },
@@ -85,7 +85,7 @@ const SCHOOL = [
   ["63X","46D1A9FD1F84CA5C","藍地站上車","往西九龍 · 約 8 分鐘到華都",8],
   ["68A","46D1A9FD1F84CA5C","藍地站上車","往青衣站 · 約 8 分鐘到華都",8],
   ["258P","46D1A9FD1F84CA5C","藍地站上車","往藍田 · 約 12 分鐘到華都",12],
-  ["261","50DC968C90CE7CF4","兆康站（南）上車","不停藍地 · 往三聖 · 約 8 分鐘到華都",8]
+  ["960P","46D1A9FD1F84CA5C","藍地站上車","往銅鑼灣 · 約 10 分鐘到華都",10]
 ];
 const BACK = [["53","459BE083B86A8337","置樂花園上車","往元朗形點 · 約 8 分鐘到藍地",8]];
 const TO_STATION = [
@@ -205,7 +205,7 @@ async function lightRail(stationId, platformId, dests, heading, via) {
   } catch { return []; }
 }
 async function load(id) {
-  if (id==="school") return [{ label:"九巴 · 藍地 → 華都", hint:"261 不停藍地站，改於兆康站（南）上車", rows: await kmb(SCHOOL) }];
+  if (id==="school") return [{ label:"九巴 · 藍地 → 華都", rows: await kmb(SCHOOL) }];
   if (id==="to-hom") {
     const [bus, rail] = await Promise.all([buses(TO_STATION), train("TUM","WKS","屯門站開車","往烏溪沙 · 經何文田")]);
     return [{ label:"港鐵巴士 · 置樂 → 屯門站", rows: bus }, { label:"屯馬線 · 屯門站開車", rows:[rail] }];

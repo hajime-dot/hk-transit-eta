@@ -8,38 +8,36 @@
   :root { --bg:#f0f2f5; --card:#fff; --text:#1a1a1a; --primary:#0066cc; --secondary:#555; --success:#008000; --soon:#d4edda; --border:#ddd; }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
-  header{padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
-  h1{font-size:1.2rem;color:var(--primary);}
-  .clock{font-size:1.1rem;font-variant-numeric:tabular-nums;font-weight:600;}
-  .scenarios{display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
-  button.scenario{padding:8px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:0.85rem;white-space:nowrap;}
-  button.scenario.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-  .content{flex:1;overflow:auto;padding:8px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;height:100%;}
-  .route-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.08);}
-  .route-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
-  .route-no{font-size:1.4rem;font-weight:700;color:var(--primary);}
-  .dest{font-size:0.8rem;color:var(--secondary);text-align:right;max-width:60%;}
-  .etas{display:flex;flex-direction:column;gap:6px;flex:1;}
-  .eta{background:#f8f9fa;border-radius:6px;padding:8px;text-align:center;font-variant-numeric:tabular-nums;}
+  header{padding:6px 10px;background:#fff;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:10px;}
+  h1{font-size:1.1rem;color:var(--primary);white-space:nowrap;}
+  .clock{font-size:1rem;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+  select#scenarioSelect{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;background:#fff;flex:1;max-width:220px;}
+  .content{flex:1;overflow:auto;padding:6px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;height:100%;}
+  .route-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .route-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+  .route-no{font-size:1.3rem;font-weight:700;color:var(--primary);}
+  .dest{font-size:0.75rem;color:var(--secondary);text-align:right;max-width:55%;line-height:1.2;}
+  .etas{display:flex;flex-direction:column;gap:4px;flex:1;}
+  .eta{background:#f8f9fa;border-radius:6px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
   .eta.soon{background:var(--soon);border:1px solid var(--success);}
-  .eta .time{font-size:1.1rem;font-weight:600;}
-  .eta .remain{font-size:0.85rem;color:var(--success);margin-top:2px;}
+  .eta .time{font-size:1rem;font-weight:600;}
+  .eta .remain{font-size:0.8rem;color:var(--success);margin-top:1px;}
   .village-bus .eta{background:#fff3cd;}
   .loading,.error{grid-column:1/-1;text-align:center;padding:40px;color:var(--secondary);}
-  footer{font-size:0.7rem;color:var(--secondary);text-align:center;padding:4px;background:#fff;border-top:1px solid var(--border);flex-shrink:0;}
+  footer{font-size:0.65rem;color:var(--secondary);text-align:center;padding:3px;background:#fff;border-top:1px solid var(--border);flex-shrink:0;}
 </style>
 </head>
 <body>
 <header>
-  <h1>香港交通到站時間</h1>
+  <h1>香港交通到站</h1>
+  <select id="scenarioSelect">
+    <option value="1">情景一：文康弦返學</option>
+    <option value="2">情景二：返工去何文田</option>
+    <option value="3">情景三：屯門站返置樂</option>
+  </select>
   <div class="clock" id="clock">--:--:--</div>
 </header>
-<div class="scenarios">
-  <button class="scenario active" data-scenario="1">情景一：文康弦返學</button>
-  <button class="scenario" data-scenario="2">情景二：返工去何文田</button>
-  <button class="scenario" data-scenario="3">情景三：屯門站返置樂</button>
-</div>
 <div class="content">
   <div id="panel-1" class="panel active"><div id="content1" class="grid"><div class="loading">載入中...</div></div></div>
   <div id="panel-2" class="panel"><div id="content2" class="grid"><div class="loading">載入中...</div></div></div>
@@ -50,7 +48,11 @@
 const clockEl=document.getElementById('clock');
 function updateClock(){clockEl.textContent=new Date().toLocaleTimeString('zh-HK',{hour12:false});}
 setInterval(updateClock,1000);updateClock();
-document.querySelectorAll('.scenario').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.scenario').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('panel-'+btn.dataset.scenario).classList.add('active');});});
+const select=document.getElementById('scenarioSelect');
+select.addEventListener('change',()=>{
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+select.value).classList.add('active');
+});
 const SCENARIO1_ROUTES=[{route:'53',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'63X',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'68A',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'258P',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'261',stop:'46D1A9FD1F84CA5C',service:'1',note:'藍地→華都',alightMin:11},{route:'53',stop:'459BE083B86A8337',service:'1',note:'置樂→藍地',alightMin:8}];
 const MTR_BUS_ROUTES=['K52','K53','K51'];
 const SCENARIO3_ROUTES=['K51','K52','K53'];
@@ -73,7 +75,6 @@ async function loadScenario3(){
   for(const route of SCENARIO3_ROUTES){
     const data=await fetchMTRBus(route);
     if(!data||!data.busStop) continue;
-    // Prefer stops near Tuen Mun Station (common patterns: D100-D140 area or nD for reverse)
     const tmStop=data.busStop.find(s=>s.busStopId&&(s.busStopId.includes('D100')||s.busStopId.includes('D110')||s.busStopId.includes('D120')||s.busStopId.includes('nD100')||s.busStopId.includes('nD110'))) || data.busStop[5] || data.busStop[0];
     if(tmStop&&tmStop.bus&&tmStop.bus.length){
       const etaHtml=tmStop.bus.slice(0,3).map(b=>{

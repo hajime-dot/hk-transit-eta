@@ -20,8 +20,8 @@
   .kicker, .path, .hint, .mode, .sub, footer { color: var(--muted); }
   .kicker, .hint, .mode, footer { font-size: 0.75rem; }
   .clock { font-family: Barlow, sans-serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); }
-  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; }
-  .tabs button { min-height: 44px; flex: 0 0 auto; border-radius: 999px; padding: 0 12px; background: var(--surface-2); font-size: 0.875rem; }
+  .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; }
+  .tabs button { min-height: 44px; border-radius: 999px; padding: 0 2px; background: var(--surface-2); font-size: 0.75rem; line-height: 1.2; }
   .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--ink); font-weight: 600; }
   .path { margin: 8px 0 0; font-size: 0.875rem; }
   .path span { color: var(--faint); }
@@ -34,8 +34,7 @@
   h2 { display: flex; align-items: center; gap: 8px; margin: 14px 12px 0; font-size: 0.75rem; font-weight: 500; color: var(--muted); }
   h2 i { width: 2px; height: 12px; background: var(--accent); display: block; }
   .hint { margin: 4px 12px 0; }
-  .board { margin-top: 4px; }
-  @media (min-width: 768px) { .board { display: grid; grid-template-columns: 1fr 1fr; } }
+  .board { display: grid; grid-template-columns: 1fr 1fr; }
   article { border-bottom: 1px solid var(--line); padding: 10px 12px; }
   .id { display: flex; gap: 8px; }
   .code { width: 3.5rem; flex: 0 0 auto; font-family: Barlow, sans-serif; font-size: 1.25rem; font-weight: 600; line-height: 1; }
@@ -68,7 +67,6 @@
       </div>
     </div>
     <div class="tabs" id="tabs"></div>
-    <p class="path" id="path"></p>
   </header>
   <div id="body" style="flex:1"></div>
   <footer id="foot">倒數為分:秒，每秒跳動。落車時間是估計。</footer>
@@ -233,25 +231,30 @@ function paint() {
   const spec = SCENARIOS.find(s => s.id===scenario);
   $("title").textContent = spec.title;
   $("clock").textContent = hk(Date.now(), true);
-  $("path").innerHTML = `${spec.path} <span>· ${spec.detail}</span>`;
   $("tabs").innerHTML = SCENARIOS.map(s => `<button type="button" data-id="${s.id}" aria-pressed="${s.id===scenario}">${s.short}</button>`).join("");
   $("reload").className = pending ? "spin" : "";
   if (!sections) {
-    $("body").innerHTML = `<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>`;
+    $("body").innerHTML = `<div class="board"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>`;
   } else {
-    const next = firstEta();
-    let hero;
-    if (!next) hero = `<div class="hero"><div class="kicker">最快一班</div><div>暫時未有班次</div></div>`;
-    else {
-      const sec = left(next.at), soon = sec<90;
-      hero = `<div class="hero${soon?" soon":""}" id="hero"><div class="${soon?"":"kicker"}">${soon?"就到，可以出發":"最快一班"}</div><div class="row"><div><strong>${next.row.code} · ${next.row.heading}</strong><div class="${soon?"":"sub"}" style="font-size:.75rem">${next.row.detail}</div></div><div class="big" data-hero="${next.at}">${sec===0?"現在":colon(sec)}</div></div></div>`;
-    }
-    const blocks = sections.map(section => `<h2><i></i>${section.label}</h2>${section.hint?`<div class="hint">${section.hint}</div>`:""}<div class="board">${section.rows.map(row => {
-      const visible = row.etas.filter(e => e.at >= Date.now()-15000).slice(0,4);
-      const etas = visible.length ? `<div class="etas${visible.length>3?" four":""}">${visible.map(e => cell(e, row.alight)).join("")}</div>` : `<div class="empty">暫無班次</div>`;
-      return `<article><div class="id"><div><div class="code">${row.code}</div><div class="mode">${row.mode}</div></div><div><div>${row.heading}</div><div class="sub" style="font-size:.75rem">${row.detail}</div></div></div>${etas}</article>`;
-    }).join("")}</div>`).join("");
-    $("body").innerHTML = hero + blocks;
+    const rows = sections.flatMap(section => section.rows).sort((a, b) => {
+      const at = row => (row.etas.find(e => e.at >= Date.now()-15000) || {}).at ?? Infinity;
+      return at(a) - at(b);
+    });
+    const cards = rows.map((row, index) => {
+      const visible = row.etas.filter(e => e.at >= Date.now()-15000).slice(0, 3);
+      const first = index === 0 && visible.length;
+      const times = visible.length ? `<ul style="margin:6px 0 0;padding:0;list-style:none">${visible.map(eta => {
+        const sec = left(eta.at);
+        const soon = sec < 90;
+        const extra = [
+          row.alight != null ? "落 " + colon(sec + row.alight * 60) : "",
+          eta.platform ? eta.platform + "號月台" : ""
+        ].filter(Boolean).join(" · ");
+        return `<li data-at="${eta.at}"${row.alight != null ? ` data-alight="${row.alight}"` : ""}${eta.platform ? ` data-platform="${eta.platform}"` : ""}><div style="display:flex;justify-content:space-between;gap:4px"><span class="count" style="color:${soon ? "var(--accent)" : "inherit"}">${sec===0?"現在":colon(sec)}</span><span class="meta">${hk(eta.at,false)}${eta.scheduled?" 預":""}</span></div>${extra ? `<div class="alight alight-line">${extra}</div>` : ""}</li>`;
+      }).join("")}</ul>` : `<div class="empty">暫無班次</div>`;
+      return `<article style="${first ? "background:var(--surface)" : ""}"><div class="id" style="justify-content:space-between"><div class="code" style="${first ? "color:var(--accent)" : ""}">${row.code}</div><div class="mode">${row.mode}</div></div><div class="sub" style="font-size:.75rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${row.heading}</div>${times}</article>`;
+    }).join("");
+    $("body").innerHTML = `<div class="board">${cards}</div>`;
   }
   $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。${fetchedAt?" 資料更新 "+hk(fetchedAt,true):""}${error?" · 上次更新失敗":""}`;
 }
@@ -276,18 +279,18 @@ function tick() {
   document.querySelectorAll("[data-at]").forEach(el => {
     const sec = left(Number(el.dataset.at));
     const count = el.querySelector(".count");
-    if (count) count.textContent = sec === 0 ? "現在" : colon(sec);
-    el.classList.toggle("soon", sec < 90);
+    if (count) {
+      count.textContent = sec === 0 ? "現在" : colon(sec);
+      count.style.color = sec < 90 ? "var(--accent)" : "inherit";
+    }
     const line = el.querySelector(".alight-line");
-    if (line && el.dataset.alight != null) line.textContent = "落 " + colon(sec + Number(el.dataset.alight) * 60);
+    if (line) {
+      const parts = [];
+      if (el.dataset.alight != null && el.dataset.alight !== "") parts.push("落 " + colon(sec + Number(el.dataset.alight) * 60));
+      if (el.dataset.platform) parts.push(el.dataset.platform + "號月台");
+      line.textContent = parts.join(" · ");
+    }
   });
-  const hero = document.querySelector("[data-hero]");
-  if (hero) {
-    const sec = left(Number(hero.dataset.hero));
-    hero.textContent = sec === 0 ? "現在" : colon(sec);
-    const box = $("hero");
-    if (box) box.classList.toggle("soon", sec < 90);
-  }
   if (fetchedAt) $("foot").textContent = `倒數為分:秒，每秒跳動。落車時間是估計。 資料更新 ${hk(fetchedAt, true)}${error ? " · 上次更新失敗" : ""}`;
 }
 setInterval(tick, 1000);
